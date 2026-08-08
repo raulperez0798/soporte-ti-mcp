@@ -13,6 +13,13 @@ estado esta un ticket existente, o dejar creado un borrador de ticket nuevo.
 en un sistema de tickets externo (los tickets se guardan en memoria durante
 la sesion) y no resuelve incidentes fuera del catalogo simulado.
 
+**Flujo tipico:** el colaborador escribe su problema en el chat ("tengo
+problemas con la VPN"), el agente busca en el catalogo de incidentes y
+responde con la solucion conocida; si el colaborador pregunta por un ticket
+especifico el agente consulta su estado; si el problema no tiene incidente
+conocido, el agente ofrece crear un borrador de ticket con titulo,
+descripcion y categoria.
+
 ## Arquitectura
 
 ```
@@ -27,14 +34,14 @@ stdio), por lo que no requiere un despliegue ni un `MCP_SERVER_URL` separado.
 
 ## Tools MCP
 
-| Tool | Proposito | Entrada | Salida |
-|---|---|---|---|
-| `buscar_incidente` | Busca incidentes conocidos por palabra clave | `palabra_clave: str` | `{resultados: [...]}` |
-| `consultar_estado_ticket` | Devuelve estado, prioridad y responsable de un ticket | `ticket_id: str` | `{ticket_id, estado, prioridad, asignado, ultima_actualizacion}` |
-| `crear_borrador_ticket` | Crea un borrador de ticket nuevo | `titulo: str, descripcion: str, categoria: str` | `{ticket_id, estado: "borrador"}` |
+| Tool | Proposito | Entrada | Validacion | Salida | Riesgo |
+|---|---|---|---|---|---|
+| `buscar_incidente` | Busca incidentes conocidos por palabra clave | `palabra_clave: str` | Rechaza vacio/solo espacios | `{resultados: [...]}` | Lectura, bajo riesgo |
+| `consultar_estado_ticket` | Devuelve estado, prioridad y responsable de un ticket | `ticket_id: str` | Rechaza vacio; valida que el ticket exista | `{ticket_id, estado, prioridad, asignado, ultima_actualizacion}` | Lectura, bajo riesgo |
+| `crear_borrador_ticket` | Crea un borrador de ticket nuevo | `titulo: str, descripcion: str, categoria: str` | Rechaza titulo o descripcion vacios | `{ticket_id, estado: "borrador"}` | Escritura, riesgo medio (solo crea un borrador, no notifica ni asigna) |
 
-Las tres validan entradas vacias/invalidas y devuelven un `{"error": ...}`
-estructurado en vez de lanzar una excepcion opaca.
+Las tres devuelven un `{"error": ...}` estructurado ante entrada invalida en
+vez de lanzar una excepcion opaca (ver `tests/test_tools.py`).
 
 ## Memoria
 
@@ -44,6 +51,12 @@ permite que el agente resuelva referencias como "ese ticket" en un segundo
 mensaje sin repetir el identificador. La memoria vive solo en el proceso: se
 pierde si la app se reinicia, y se puede limpiar manualmente con el boton
 "Reiniciar conversacion".
+
+**Ventana:** para no mandar el historial completo al modelo en conversaciones
+largas, se usa `SummarizationMiddleware` de LangChain (`agent_core.py`): al
+superar 10 mensajes en la sesion, los mas antiguos se condensan en un resumen
+y se conservan los ultimos 6 mensajes tal cual. Esto cubre tanto la ventana
+como el resumen que menciona la guia, sin perder el contexto relevante.
 
 ## Instalacion local
 
@@ -63,6 +76,40 @@ pytest -q
 
 `tests/test_tools.py` prueba las tres tools directamente (casos validos,
 inexistentes y de entrada invalida).
+
+## Evidencia: agente + memoria en accion
+
+Consulta directa (usa `buscar_incidente`):
+
+```
+Usuario: Tengo problemas con la VPN, hay algun incidente conocido?
+
+[tool_call] buscar_incidente(palabra_clave="VPN")
+[tool_result] {"resultados": [{"id": "INC-001", "titulo": "VPN no conecta",
+  "categoria": "red", "estado": "conocido",
+  "solucion": "Reiniciar el cliente VPN y verificar usuario y contrasena."}]}
+
+Agente: He encontrado un incidente conocido relacionado con la VPN:
+- Titulo: VPN no conecta
+- Categoria: Red
+- Estado: Conocido
+- Solucion: Reiniciar el cliente VPN y verificar usuario y contrasena.
+Evidencia utilizada: busqueda de incidentes conocidos por la palabra clave "VPN".
+```
+
+Referencia con memoria (mismo `session_id`, dos turnos, usa `consultar_estado_ticket`):
+
+```
+Usuario: Revisa el ticket TCK-1001
+Agente: [consulta la tool y responde estado: abierto, prioridad: alta, ...]
+
+Usuario: Cual es la prioridad de ese ticket?
+Agente: La prioridad del ticket TCK-1001 es alta.
+Evidencia utilizada: Consulte el estado del ticket TCK-1001.
+```
+
+El agente resuelve "ese ticket" sin que el usuario repita el identificador,
+gracias al `thread_id` compartido en la sesion.
 
 ## Despliegue en Streamlit Community Cloud
 
