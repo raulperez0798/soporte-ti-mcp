@@ -32,6 +32,16 @@ Usuario -> Streamlit (chat) -> Agente LangChain + OpenAI -> MCP client (stdio)
 El servidor MCP se levanta como subproceso de la propia app (transporte
 stdio), por lo que no requiere un despliegue ni un `MCP_SERVER_URL` separado.
 
+**Nota de arquitectura.** La guia de la tarea recomienda, para produccion,
+publicar el MCP como servicio HTTP remoto independiente (variable
+`MCP_SERVER_URL`), para no depender de un proceso local dentro de la app
+alojada. Para este proyecto se eligio la variante mas simple (MCP embebido
+via stdio) porque cumple igual los requisitos minimos (MCP propio con 3+
+tools, app publicada) con un solo servicio que desplegar en vez de dos.
+Migrar a HTTP remoto implicaria cambiar `mcp_server.py` a transporte
+`streamable-http`, desplegarlo aparte y actualizar `agent_core.py` para
+conectarse por `MCP_SERVER_URL` en vez de spawnear el subproceso.
+
 ## Tools MCP
 
 | Tool | Proposito | Entrada | Validacion | Salida | Riesgo |
