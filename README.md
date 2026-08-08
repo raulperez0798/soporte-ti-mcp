@@ -79,5 +79,5 @@ inexistentes y de entrada invalida).
 
 ## Enlaces
 
-- App: https://... (completar tras el despliegue)
-- Repositorio: https://github.com/... (completar tras subir a GitHub)
+- App: https://soporte-ti-mcp-ah3o2jvewufpghg4tdtc9w.streamlit.app/
+- Repositorio: https://github.com/raulperez0798/soporte-ti-mcp
