@@ -1,7 +1,10 @@
 """Agente LangChain + OpenAI conectado al servidor MCP de soporte TI.
 
-El servidor MCP se levanta como subproceso via stdio (langchain-mcp-adapters),
-por lo que no hace falta desplegar un servicio separado: todo vive en esta app.
+Si la variable de entorno MCP_SERVER_URL esta configurada, el agente se
+conecta al MCP como servicio remoto por streamable-http (arquitectura
+recomendada para produccion). Si no esta configurada, levanta el MCP como
+subproceso local via stdio (mas simple para correr todo en un solo lugar
+durante desarrollo).
 """
 import os
 import sys
@@ -27,23 +30,40 @@ SYSTEM_PROMPT = """
 Eres un agente de soporte TI que ayuda a colaboradores internos.
 Tu alcance es unicamente: buscar incidentes conocidos, consultar el estado de
 tickets y crear borradores de tickets nuevos, usando siempre las tools.
+Cuando el colaborador describa un problema (por ejemplo "no me anda la
+impresora" o "tengo problemas con la VPN"), llama primero a
+buscar_incidente con una palabra clave relevante antes de pedir mas
+detalles. Solo pide una aclaracion si la busqueda no devuelve resultados
+utiles o si falta un dato indispensable (por ejemplo un ticket_id para
+consultar_estado_ticket).
 No inventes ids de ticket, estados ni soluciones que no vengan de una tool.
-Si falta un dato necesario (por ejemplo un ticket_id), pide una aclaracion.
 Si la pregunta no tiene relacion con soporte TI (incidentes o tickets),
 no la respondas con conocimiento general: indica amablemente que esta
 fuera de tu alcance y que solo puedes ayudar con soporte TI.
 Al final de tu respuesta indica brevemente que evidencia usaste.
 """
 
-_client = MultiServerMCPClient(
-    {
-        "soporte-ti": {
-            "command": sys.executable,
-            "args": [MCP_SERVER_PATH],
-            "transport": "stdio",
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "").strip()
+
+if MCP_SERVER_URL:
+    _client = MultiServerMCPClient(
+        {
+            "soporte-ti": {
+                "url": MCP_SERVER_URL.rstrip("/") + "/mcp",
+                "transport": "streamable_http",
+            }
         }
-    }
-)
+    )
+else:
+    _client = MultiServerMCPClient(
+        {
+            "soporte-ti": {
+                "command": sys.executable,
+                "args": [MCP_SERVER_PATH],
+                "transport": "stdio",
+            }
+        }
+    )
 
 _memory = InMemorySaver()
 _agent = None

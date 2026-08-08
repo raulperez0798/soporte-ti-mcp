@@ -2,7 +2,15 @@
 
 Expone tres tools de negocio sobre datos simulados en memoria:
 buscar_incidente, consultar_estado_ticket y crear_borrador_ticket.
+
+Transporte configurable via MCP_TRANSPORT:
+- "stdio" (por defecto): para Claude Desktop u otro host que administre
+  el proceso localmente.
+- "streamable-http": para desplegar el MCP como servicio remoto propio,
+  consultado por la app Streamlit via MCP_SERVER_URL.
 """
+import os
+
 from fastmcp import FastMCP
 
 mcp = FastMCP("soporte-ti")
@@ -103,4 +111,9 @@ def crear_borrador_ticket(titulo: str, descripcion: str, categoria: str) -> dict
 
 
 if __name__ == "__main__":
-    mcp.run()
+    transporte = os.environ.get("MCP_TRANSPORT", "stdio")
+    if transporte == "streamable-http":
+        puerto = int(os.environ.get("PORT", 8000))
+        mcp.run(transport="streamable-http", host="0.0.0.0", port=puerto)
+    else:
+        mcp.run()

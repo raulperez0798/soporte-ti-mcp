@@ -23,24 +23,31 @@ descripcion y categoria.
 ## Arquitectura
 
 ```
-Usuario -> Streamlit (chat) -> Agente LangChain + OpenAI -> MCP client (stdio)
+Usuario -> Streamlit (chat) -> Agente LangChain + OpenAI -> MCP client (streamable-http)
                                                                     |
                                                           Servidor MCP propio
-                                                       (mcp_server.py, datos en memoria)
+                                                (mcp_server.py, remoto, datos en memoria)
+
+Modo local adicional:
+Claude Desktop --stdio--> mcp_server.py (mismo codigo, otro transporte)
 ```
 
-El servidor MCP se levanta como subproceso de la propia app (transporte
-stdio), por lo que no requiere un despliegue ni un `MCP_SERVER_URL` separado.
+Se sigue la arquitectura de despliegue recomendada por la guia: Streamlit
+publica solo el frontend y el servidor MCP corre como **servicio remoto
+independiente**, consultado via HTTP mediante la variable `MCP_SERVER_URL`.
+Esto evita depender de un proceso local dentro de la app alojada.
 
-**Nota de arquitectura.** La guia de la tarea recomienda, para produccion,
-publicar el MCP como servicio HTTP remoto independiente (variable
-`MCP_SERVER_URL`), para no depender de un proceso local dentro de la app
-alojada. Para este proyecto se eligio la variante mas simple (MCP embebido
-via stdio) porque cumple igual los requisitos minimos (MCP propio con 3+
-tools, app publicada) con un solo servicio que desplegar en vez de dos.
-Migrar a HTTP remoto implicaria cambiar `mcp_server.py` a transporte
-`streamable-http`, desplegarlo aparte y actualizar `agent_core.py` para
-conectarse por `MCP_SERVER_URL` en vez de spawnear el subproceso.
+El transporte del MCP es configurable con la variable `MCP_TRANSPORT`
+(`mcp_server.py`):
+- `streamable-http` (usada en el servicio remoto desplegado).
+- `stdio` (por defecto), usada por Claude Desktop o para correr todo en un
+  solo proceso durante desarrollo local sin desplegar nada extra.
+
+`agent_core.py` elige automaticamente como conectarse: si `MCP_SERVER_URL`
+esta configurada se conecta por HTTP a ese endpoint; si no, levanta
+`mcp_server.py` como subproceso local via stdio. Esto permite desarrollar y
+probar todo en una sola maquina sin perder la opcion de desplegar el MCP
+como servicio separado.
 
 ## Tools MCP
 
@@ -75,6 +82,20 @@ python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env        # completar OPENAI_API_KEY
+streamlit run app_streamlit.py
+```
+
+Sin configurar `MCP_SERVER_URL`, la app levanta el MCP como subproceso local
+(stdio) automaticamente: no hace falta correr nada mas para desarrollar.
+
+Para probar el modo remoto en local (el mismo que usa produccion):
+
+```bash
+# Terminal 1: levantar el MCP en modo HTTP
+MCP_TRANSPORT=streamable-http PORT=8000 python mcp_server.py
+
+# Terminal 2: apuntar la app a ese MCP
+echo "MCP_SERVER_URL=http://localhost:8000" >> .env
 streamlit run app_streamlit.py
 ```
 
@@ -121,20 +142,65 @@ Evidencia utilizada: Consulte el estado del ticket TCK-1001.
 El agente resuelve "ese ticket" sin que el usuario repita el identificador,
 gracias al `thread_id` compartido en la sesion.
 
-## Despliegue en Streamlit Community Cloud
+## Despliegue
 
-1. Sube el repo a GitHub (ver comandos abajo).
-2. En https://share.streamlit.io -> "Create app" -> conecta el repo, rama
-   `main` y archivo de entrada `app_streamlit.py`.
-3. En "Secrets" agrega:
+Son dos servicios: el MCP (backend) en Render y la interfaz en Streamlit
+Community Cloud, ambos apuntando al mismo repositorio de GitHub.
+
+### 1. Servidor MCP en Render (servicio HTTP remoto)
+
+1. Sube el repo a GitHub (ver comandos mas abajo).
+2. En https://render.com -> "New +" -> "Web Service" -> conecta el repo.
+3. Configura:
+   - **Runtime:** Python 3
+   - **Build command:** `pip install -r requirements.txt`
+   - **Start command:** `python mcp_server.py`
+   - **Variables de entorno:** `MCP_TRANSPORT=streamable-http`
+     (Render inyecta `PORT` automaticamente).
+4. Deploy. Copia la URL publica que te da Render, por ejemplo
+   `https://soporte-ti-mcp.onrender.com`.
+
+En el free tier, el servicio se duerme tras un rato sin uso y la primera
+consulta tras dormirse tarda unos segundos extra en responder (cold start).
+
+### 2. Interfaz en Streamlit Community Cloud
+
+1. En https://share.streamlit.io -> "Create app" -> conecta el mismo repo,
+   rama `main` y archivo de entrada `app_streamlit.py`.
+2. En "Secrets" agrega:
    ```
    OPENAI_API_KEY = "sk-..."
    OPENAI_MODEL = "gpt-5.4-nano"
+   MCP_SERVER_URL = "https://soporte-ti-mcp.onrender.com"
    ```
-4. Deploy. Prueba la URL publica con los 5 escenarios (consulta directa,
+3. Deploy. Prueba la URL publica con los 5 escenarios (consulta directa,
    compuesta, referencia con memoria, dato inexistente, fuera de alcance).
+
+## Configuracion local para Claude Desktop
+
+Como evidencia adicional de que el MCP no fue creado solo para Streamlit,
+puede conectarse a Claude Desktop en modo local (stdio). Copia
+`claude_desktop_config.example.json` a la configuracion de Claude Desktop
+(`claude_desktop_config.json`), ajustando la ruta absoluta:
+
+```json
+{
+  "mcpServers": {
+    "soporte-ti": {
+      "command": "python",
+      "args": ["/ruta/absoluta/a/mcp_server.py"]
+    }
+  }
+}
+```
+
+Sin `MCP_TRANSPORT` configurado, `mcp_server.py` usa stdio por defecto, que
+es lo que Claude Desktop espera al administrar el proceso directamente. Esta
+demostracion es complementaria; el entregable obligatorio sigue siendo el
+enlace de Streamlit y el repositorio de GitHub.
 
 ## Enlaces
 
 - App: https://soporte-ti-mcp-ah3o2jvewufpghg4tdtc9w.streamlit.app/
 - Repositorio: https://github.com/raulperez0798/soporte-ti-mcp
+- Servidor MCP: https://... (completar tras desplegar en Render)

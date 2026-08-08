@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "soporte-ti": {
+      "command": "python",
+      "args": ["/ruta/absoluta/a/mcp_server.py"]
+    }
+  }
+}

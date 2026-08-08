@@ -8,6 +8,8 @@ try:
         os.environ.setdefault("OPENAI_API_KEY", st.secrets["OPENAI_API_KEY"])
     if "OPENAI_MODEL" in st.secrets:
         os.environ.setdefault("OPENAI_MODEL", st.secrets["OPENAI_MODEL"])
+    if "MCP_SERVER_URL" in st.secrets:
+        os.environ.setdefault("MCP_SERVER_URL", st.secrets["MCP_SERVER_URL"])
 except Exception:
     pass
 
