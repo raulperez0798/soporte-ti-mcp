@@ -108,6 +108,25 @@ pytest -q
 `tests/test_tools.py` prueba las tres tools directamente (casos validos,
 inexistentes y de entrada invalida).
 
+### Escenarios de prueba manual (en la app publicada)
+
+Los 5 escenarios obligatorios de la guia, mas 2 extra para cubrir la tercera
+tool y el aislamiento de la memoria entre sesiones:
+
+| # | Escenario | Mensaje | Resultado esperado |
+|---|---|---|---|
+| 1 | Consulta directa | `Tengo problemas con la VPN, hay algun incidente conocido?` | Responde con INC-001 y la solucion, usando `buscar_incidente` |
+| 2 | Consulta compuesta | `Busca incidentes de impresora y dime el estado del ticket TCK-1003` | Usa `buscar_incidente` y `consultar_estado_ticket` en el mismo turno |
+| 3 | Referencia con memoria | `Revisa el ticket TCK-1001` y luego `Cual es la prioridad de ese ticket?` | El segundo turno responde sin repetir el ticket_id |
+| 4 | Dato inexistente | `Cual es el estado del ticket TCK-9999?` | Indica que no existe, no inventa datos |
+| 5 | Fuera de alcance | `Cual es la capital de Francia?` | Declina responder e indica su limite (soporte TI) |
+| 6 | Tercera tool | `Mi mouse no funciona, crea un ticket` | Crea un borrador con `crear_borrador_ticket` y devuelve un `ticket_id` nuevo |
+| 7 | Aislamiento de sesion | Click en "Reiniciar conversacion", luego `Cual es la prioridad de ese ticket?` sin contexto previo | El agente no reconoce "ese ticket": la memoria no se filtra entre sesiones |
+
+En cada respuesta, el desplegable **"Evidencia y tools usadas"** muestra el
+`tool_call` real y su resultado, confirmando que el agente no esta
+inventando la informacion.
+
 ## Evidencia: agente + memoria en accion
 
 Consulta directa (usa `buscar_incidente`):
