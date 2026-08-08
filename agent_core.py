@@ -53,7 +53,7 @@ async def _get_agent():
     global _agent
     if _agent is None:
         tools = await _client.get_tools()
-        model = ChatOpenAI(model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"), temperature=0)
+        model = ChatOpenAI(model=os.getenv("OPENAI_MODEL", "gpt-5.4-nano"), temperature=0)
         _agent = create_agent(
             model=model,
             tools=tools,

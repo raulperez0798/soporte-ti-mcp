@@ -129,7 +129,7 @@ gracias al `thread_id` compartido en la sesion.
 3. En "Secrets" agrega:
    ```
    OPENAI_API_KEY = "sk-..."
-   OPENAI_MODEL = "gpt-4o-mini"
+   OPENAI_MODEL = "gpt-5.4-nano"
    ```
 4. Deploy. Prueba la URL publica con los 5 escenarios (consulta directa,
    compuesta, referencia con memoria, dato inexistente, fuera de alcance).
