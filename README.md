@@ -203,4 +203,4 @@ enlace de Streamlit y el repositorio de GitHub.
 
 - App: https://soporte-ti-mcp-ah3o2jvewufpghg4tdtc9w.streamlit.app/
 - Repositorio: https://github.com/raulperez0798/soporte-ti-mcp
-- Servidor MCP: https://... (completar tras desplegar en Render)
+- Servidor MCP: https://soporte-ti-mcp-xx9m.onrender.com

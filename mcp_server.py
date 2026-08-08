@@ -114,6 +114,13 @@ if __name__ == "__main__":
     transporte = os.environ.get("MCP_TRANSPORT", "stdio")
     if transporte == "streamable-http":
         puerto = int(os.environ.get("PORT", 8000))
-        mcp.run(transport="streamable-http", host="0.0.0.0", port=puerto)
+        # stateless_http evita depender de sesiones pegadas a una conexion,
+        # mas confiable detras de proxies como Render (ver README).
+        mcp.run(
+            transport="streamable-http",
+            host="0.0.0.0",
+            port=puerto,
+            stateless_http=True,
+        )
     else:
         mcp.run()
