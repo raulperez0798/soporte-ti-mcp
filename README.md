@@ -64,17 +64,6 @@ pytest -q
 `tests/test_tools.py` prueba las tres tools directamente (casos validos,
 inexistentes y de entrada invalida).
 
-## Docker (opcional)
-
-```bash
-docker build -t soporte-ti-mcp .
-docker run -p 8501:8501 --env-file .env soporte-ti-mcp
-```
-
-Util para correr la app en cualquier host que soporte contenedores (Render,
-Railway, Fly.io, etc). Streamlit Community Cloud no usa Docker: construye
-directo desde `requirements.txt`.
-
 ## Despliegue en Streamlit Community Cloud
 
 1. Sube el repo a GitHub (ver comandos abajo).
